@@ -1,4 +1,8 @@
-# Group Assignment Generator
+# Group Assignment Group Generator
+
+[![lifecycle](https://img.shields.io/badge/lifecycle-development-blue.svg)]()
+[![lifecycle](https://img.shields.io/badge/version-2025-red.svg)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-lightgrey.svg)](https://opensource.org/license/mit)
 
 This repository contains a reproducible workflow for creating **Canvas-ready assignment groups** from a course roster.
 
