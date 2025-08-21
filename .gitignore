@@ -6,3 +6,4 @@
 .Rbuildignore
 *.Rproj
 replacements.txt
+config/overrides.csv
