@@ -174,3 +174,35 @@ pass_size_check <- function(data, grouping_var,
     
     invisible(TRUE)
 }
+
+#' Apply manual overrides from a CSV (not tracked in git)
+#'
+#' @param df Roster dataframe containing at least `login_id` and `tutorial_group`
+#' @param path Path to overrides CSV (default "config/overrides.csv")
+#' @return Dataframe with overrides applied and removed rows dropped
+apply_overrides <- function(df, path = "config/overrides.csv") {
+    if (!file.exists(path)) return(df)
+    
+    ovr <- readr::read_csv(path, show_col_types = FALSE) |>
+        dplyr::mutate(
+            active = as.logical(active),
+            remove = as.logical(remove)
+        ) |>
+        dplyr::filter(active)
+    
+    unknown <- setdiff(ovr$login_id, df$login_id)
+    if (length(unknown)) {
+        warning("Overrides reference unknown login_id(s): ", paste(unknown, collapse = ", "))
+    }
+    
+    df |>
+        dplyr::left_join(
+            ovr |> dplyr::select(login_id, tutorial_group_override, remove),
+            by = "login_id"
+        ) |>
+        dplyr::mutate(
+            tutorial_group = dplyr::coalesce(tutorial_group_override, tutorial_group)
+        ) |>
+        dplyr::filter(is.na(remove) | remove == FALSE) |>
+        dplyr::select(-tutorial_group_override, -remove)
+}
