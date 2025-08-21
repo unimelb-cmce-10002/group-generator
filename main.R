@@ -22,7 +22,7 @@ df <- df %>%
 
 # Optional: manual fix-ups not yet in the enrollment system
 # See README for format of a supplementary csv of changes
-df <- apply_overrides(df)  
+df <- apply_overrides(df, path = "config/overrides.csv")  
 
 # 4) Generate groups (max 4s, 3s only as needed) -------------------------------
 groups <- group_generator(
