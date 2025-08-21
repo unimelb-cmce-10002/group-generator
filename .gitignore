@@ -1,0 +1,8 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.csv
+.Rbuildignore
+*.Rproj
+replacements.txt
