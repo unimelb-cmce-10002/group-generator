@@ -4,7 +4,7 @@ library(dplyr)
 library(assertr)
 
 # 1) Load helpers --------------------------------------------------------------
-source("group-generator.R")  
+source("group_generator.R")  
 # provides:
 # - extract_tutorial_group()
 # - group_generator()
@@ -27,7 +27,6 @@ df <- df %>%
     )
 
 # 4) Generate groups (max 4s, 3s only as needed) -------------------------------
-set.seed(76)
 groups <- group_generator(
     data        = df,
     grouping_var= tutorial_group,
@@ -63,9 +62,16 @@ size_ok <- tryCatch(
 )
 
 # 6) Write output --------------------------------------------------------------
-if (size_ok) {
-    message("✅ Groups valid. Saving CSV"
-    write_csv(groups, "output/assignment_groups.csv")
+# First reduce to only the columns from the original dataframe
+orig_cols <- names(df)
+upload_df <- 
+    groups %>% 
+    select(all_of(orig_cols))
+
+if (size_ok){
+    message("✅ Groups valid. Saving CSV")
+    write_csv(upload_df, "output/assignment_groups.csv")
 } else {
     message("❌ Not saving: fix group sizes and re-run.")
 }
+
