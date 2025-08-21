@@ -4,7 +4,7 @@ library(dplyr)
 library(assertr)
 
 # 1) Load helpers --------------------------------------------------------------
-source("group_generator.R")  
+source("R/group_generator.R")  
 # provides:
 # - extract_tutorial_group()
 # - group_generator()
@@ -21,10 +21,8 @@ df <- df %>%
     mutate(tutorial_group = extract_tutorial_group(sections))
 
 # Optional: manual fix-ups not yet in the enrollment system
-df <- df %>%
-    mutate(
-        tutorial_group = if_else(login_id == "REDACTED_LOGIN", 11L, tutorial_group)
-    )
+# See README for format of a supplementary csv of changes
+df <- apply_overrides(df)  
 
 # 4) Generate groups (max 4s, 3s only as needed) -------------------------------
 groups <- group_generator(
