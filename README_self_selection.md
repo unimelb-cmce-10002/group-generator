@@ -96,4 +96,4 @@ Contains the final allocation in a format intended for importing the groups back
 IMPORTANT: 
 
 - Any student "Not grouped" is not present in this Canvas-ready CSV output, and will have to be manually grouped on Canvas.
-- Any student(s) in groups of <3 are not present in this Canvas-ready CSV output. So, they will remain in their original invalid groups and need manual grouping to fix.
+- Any student(s) left in groups of <3 after the allocation above has run are not present in this Canvas-ready CSV output. So, they will remain in their original invalid groups and need manual grouping to fix.
