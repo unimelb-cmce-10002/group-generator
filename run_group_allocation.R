@@ -63,8 +63,11 @@
 #   -  "group_rosters_cleaned.csv" - the data once every student has a
 #      tutorial number and every cross-tutorial group has been
 #      dissolved. For your records.
-#   -  "problem_groups.csv" - only the groups that were dissolved for
-#      spanning more than one tutorial. For future reference.
+#   -  "problem_groups.csv" - only written if at least one group spans
+#      more than one tutorial. Lists every member of every such group
+#      (all flagged "To be dissolved") for future reference -- these
+#      groups are fully dissolved, and all their members are reallocated
+#      as if they'd never self-enrolled into a group at all.
 #   -  "group_rosters_assigned.csv" - final group allocations along with a 
 #      column describing any groups with issues.
 #   -  "group_rosters_for_canvas_import.csv" - final group allocations with 
@@ -289,78 +292,37 @@ finish_group_allocation <- function(
   
   dissolve_names <- group_status |> filter(spans_multiple) |> pull(group_name)
   
-  # Save a CSV of problem_groups that only keeps groups "To be dissolved" --
-  # a record of cross-tutorial groups for future reference
-  problem_output <- df |>
-    filter(group_name %in% dissolve_names) |>
-    mutate(problem_groups = "To be dissolved") |>
-    select(name, user_id, group_name, tutorial_number, problem_groups) |>
-    arrange(group_name, tutorial_number)
+  # Only do anything (and only write a record) if at least one group
+  # actually spans more than one tutorial
+  if (length(dissolve_names) > 0) {
+    
+    # Save a CSV of problem_groups that only keeps groups "To be dissolved" --
+    # a record of cross-tutorial groups for future reference
+    problem_output <- df |>
+      filter(group_name %in% dissolve_names) |>
+      mutate(problem_groups = "To be dissolved") |>
+      select(name, user_id, group_name, tutorial_number, problem_groups) |>
+      arrange(group_name, tutorial_number)
+    
+    write_csv(problem_output, problem_groups_path)
+    
+    message(sprintf(
+      "Wrote %d students across %d cross-tutorial group(s) to '%s' (dissolved, for your records).",
+      nrow(problem_output), n_distinct(problem_output$group_name), problem_groups_path
+    ))
+    
+    # Remove the existing group_name of every "To be dissolved" group's
+    # members entirely, so all of them -- not just the ones from a
+    # minority tutorial -- become groupless and get randomly reallocated
+    # within their own tutorial, exactly as if they'd never self-enrolled
+    # into a group at all
+    df$group_name[df$group_name %in% dissolve_names] <- NA_character_
+  }
   
-  write_csv(problem_output, problem_groups_path)
-  
-  message(sprintf(
-    "Wrote %d students across %d cross-tutorial group(s) to '%s' (dissolved, for your records).",
-    nrow(problem_output), n_distinct(problem_output$group_name), problem_groups_path
-  ))
-  
-  # Remove the existing group_name of the "To be dissolved" students, so
-  # they effectively become groupless after this
-  
-  
-  
-  # ORIGINAL: df$group_name[df$group_name %in% dissolve_names] <- NA_character_
-  # dissolved every member of a cross-tutorial group. In the 18 Sep data that
-  # meant Group Assignment 123 losing all four members, when only the single
-  # Tutorial 12 student had to leave -- the three Tutorial 25 students had
-  # chosen each other and shared a tutorial.
-  # -------------------------------------------------------------------------
-  # PATCH 1: keep the largest same-tutorial subgroup together and release
-  # only the students who cannot stay. Ties broken at random so the choice
-  # isn't biased toward the lowest tutorial number.
-  keep_majority <- df |>
-    filter(group_name %in% dissolve_names) |>
-    count(group_name, tutorial_number, name = "n") |>
-    group_by(group_name) |>
-    slice_sample(prop = 1) |>
-    slice_max(n, n = 1, with_ties = FALSE) |>
-    ungroup() |>
-    select(group_name, keep_tutorial = tutorial_number)
-  
-  df <- df |> left_join(keep_majority, by = "group_name")
-  
-  released <- !is.na(df$group_name) &
-    df$group_name %in% dissolve_names &
-    df$tutorial_number != df$keep_tutorial
-  
-  message(sprintf(
-    "Partially dissolved %d cross-tutorial group(s): %d released, %d kept.",
-    length(dissolve_names),
-    sum(released),
-    sum(df$group_name %in% dissolve_names, na.rm = TRUE) - sum(released)
-  ))
-  
-  df$group_name[released] <- NA_character_
-  df$keep_tutorial <- NULL
-  
-  
-  # To verify this worked, after running the allocation:
-  #
-  #   result$full |>
-  #     filter(group_name %in% dissolve_names) |>
-  #     select(name, tutorial_number, group_name) |>
-  #     arrange(group_name)
-  #
-  # Each dissolved group should still hold its majority-tutorial members,
-  # all sharing one tutorial. In the 18 Sep data that is Group Assignment
-  # 123 keeping its three Tutorial 25 students, with the single Tutorial 12
-  # student released to the pool.
-  # -------------------------------------------------------------------------
-  
-  
-  
-  # This is technically the version of the data we called
-  # "group_rosters_cleaned.csv" -- write it out for your records
+  # This is the version of the data once every student has a tutorial
+  # number and every cross-tutorial group has been dissolved -- write
+  # it out for your records, regardless of whether any dissolving
+  # actually happened this run
   write_csv(df, cleaned_path)
   message(sprintf("Wrote the cleaned roster to '%s'.", cleaned_path))
   
@@ -481,49 +443,6 @@ allocate_groups_within_budget <- function(
       "Group Assignment",
       sample(available, 1)
     )
-  }
-  
-  
-  # ====================================================================
-  # FILL AN EXISTING GROUP 
-  # (Helper function defined here to top up groups later in the script)
-  # ====================================================================
-  
-  # Function to add students from leftover pool into an existing group, 
-  # up to some target size
-  fill_group_to <- function(
-    gname,
-    target_size,
-    pool,
-    idx_tut) {
-    
-    current_size <- sum(
-      df$group_name[idx_tut] == gname,
-      na.rm = TRUE
-    )
-    
-    need <- target_size - current_size
-    
-    if (need <= 0 || length(pool) == 0) {
-      return(pool)
-    }
-    
-    take_n <- min(
-      need,
-      length(pool)
-    )
-    
-    take <- pool[
-      seq_len(take_n)
-    ]
-    
-    pool <- pool[
-      -seq_len(take_n)
-    ]
-    
-    df$group_name[take] <<- gname
-    
-    pool
   }
   
   
@@ -862,7 +781,7 @@ allocate_groups_within_budget <- function(
             df$group_name[rescued[nxt:(nxt + 2)]] <- draw_new_group_name()
             nxt <- nxt + 3
           }
-        
+          
           message(sprintf(
             "Tutorial %s: rescued %d student(s) using %d donor(s).",
             tut, length(pool), needed_donors
@@ -970,15 +889,21 @@ allocate_groups_within_budget <- function(
     select(
       any_of(
         c(
+          "name",
           "canvas_user_id",
           "user_id",
           "login_id",
+          "sections",
           "group_name",
           "canvas_group_id",
           "group_id"
         )
       )
-    )
+    ) |> 
+    # Replace NAs to blanks to not cause issues on Canvas after importing
+    mutate(across(everything(), as.character)) |>
+    mutate(across(everything(), ~ tidyr::replace_na(.x, "")))   
+
   
   # Write CSV for Canvas upload, to working directory
   write_csv(
