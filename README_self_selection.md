@@ -2,7 +2,7 @@
 
 ## Overview
 
-This script starts with a list of students exported from Canvas who have either: (1) self-selected into groups or (2) have chosen to remain ungrouped.
+The script `run_group_allocation.R` starts with a list of students exported from Canvas who have either: (1) self-selected into groups or (2) have chosen to remain ungrouped.
 
 The script then randomly allocates the ungrouped students to either: (1) the existing groups if they have space or (2) new groups.
 
@@ -30,6 +30,7 @@ The main script is: `run_group_allocation.R`
 The allocation process follows these rules:
 
 * Students **never move between tutorials**.
+* Any group containing students from different tutorials are dissolved completely before group allocation starts.
 * Existing groups of **4 or 3 students are protected** and are not dissolved.
 * Existing groups of **1 or 2 students** can be combined with other students/groups where necessary.
 * Existing groups of **1 or 2 students** are treated as units where possible when forming new groups.
@@ -97,3 +98,13 @@ IMPORTANT:
 
 - Any student "Not grouped" is not present in this Canvas-ready CSV output, and will have to be manually grouped on Canvas.
 - Any student(s) left in groups of <3 after the allocation above has run are not present in this Canvas-ready CSV output. So, they will remain in their original invalid groups and need manual grouping to fix.
+- After uploading the CSV to Canvas and updating groupings, download a fresh copy of the Canvas groups and compare with `group_rosters_for_canvas_import.csv`. Some minor differences may persist, which need to be resolved manually.
+
+## Info about the `compare_group_allocation.R` script
+
+Input: 
+* `group_rosters.csv` and `group_rosters_assgined.csv` (see above for how to source these)
+
+Output:
+* This script returns a before/after snapshot of each student in `group_comparison.csv`, showing their situation before and after group allocation, and flagging a student as "Different" if either their group name or at least one group member changed. This can be used to reach out to students whose situation has changed.
+* The script also returns the important `final_group_lookup.csv`, a lookup table containing just the sorted tutorial number, the sorted group names within each tutorial, and a list in ascending order of Student IDs in each group. This table can be uploaded to Canvas for easy lookup by students to see which group they ended up in post-allocation.
